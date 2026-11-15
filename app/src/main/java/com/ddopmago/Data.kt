@@ -57,7 +57,7 @@ object Repo {
     fun isYi(c: Char) = c.code in 0xA000..0xA48C
     fun isHan(c: Char) = c.code in 0x4E00..0x9FFF
     fun rom(c: Char): String? = map[c]
-    fun pinyin(s: String) = s.filter { isYi(it) }.joinToString(" ") { map[it] ?: "?" }
+    fun pinyin(s: String): String = s.filter { isYi(it) }.map { map[it] ?: "?" }.joinToString(" ")
     fun isAncientCp(cp: Int) = cp in 0xE000..0xF8FF || cp in 0xF0000..0xFFFFD
     fun hasYi(s: String) = s.codePoints().anyMatch { it in 0xA000..0xA48C || isAncientCp(it) }
     fun dictSize() = dictS.size
@@ -192,6 +192,51 @@ object Repo {
         val pool = if (fromYi) cleanYi else cleanZh
         return all.indices.map { it to score(q, pool[it]) }
             .filter { it.second >= 0.3 }.sortedByDescending { it.second }.take(12).map { all[it.first] }
+    }
+
+    private var hanPyMap: HashMap<Char, String>? = null
+    fun hanPy(c: Char): String? {
+        val m = hanPyMap ?: HashMap<Char, String>().also { mm ->
+            for ((syl, chars) in pyMap.entries.sortedBy { it.key }) chars.forEach { ch -> if (ch !in mm) mm[ch] = syl }
+            hanPyMap = mm
+        }
+        return m[c]
+    }
+    fun zhPinyin(s: String): List<String> = s.filter { isHan(it) }.map { hanPy(it) ?: "" }
+
+    private val yiPy by lazy { all.map { pinyin(it.yi).replace(" ", "") } }
+    private val yiInit by lazy { all.map { s -> s.yi.filter { isYi(it) }.map { c -> (rom(c) ?: "?").take(1) }.joinToString("") } }
+    private val zhPy by lazy { all.map { zhPinyin(it.zh).joinToString("") } }
+    private val zhInit by lazy { all.map { s -> zhPinyin(s.zh).map { it.take(1) }.joinToString("") } }
+
+    /** 句子翻译：输入彝文→中文，输入中文→彝文，输入拼音按相似度排序；相似度极低时按首字母拼音法；没有完全相似时按含有相同字的多少排序 */
+    fun searchAny(raw: String): List<Sent> {
+        val q = raw.trim()
+        if (q.isEmpty()) return emptyList()
+        val yiSide = q.any { isYi(it) }
+        if (yiSide || q.any { isHan(it) }) {
+            val main = search(q, yiSide)
+            val qs = q.filter { if (yiSide) isYi(it) else isHan(it) }.toSet()
+            val pool = if (yiSide) cleanYi else cleanZh
+            val extra = all.indices.map { i -> i to qs.count { it in pool[i] } }
+                .filter { it.second > 0 && all[it.first] !in main }
+                .sortedWith(compareByDescending<Pair<Int, Int>> { it.second }.thenBy { pool[it.first].length })
+                .take(30).map { all[it.first] }
+            return (main + extra).distinct().take(40)
+        }
+        val letters = q.lowercase().filter { it in 'a'..'z' }
+        if (letters.isEmpty()) return emptyList()
+        val raws = all.indices.map { i -> maxOf(sim(letters, yiPy[i]), sim(letters, zhPy[i])) }
+        val has = all.indices.any { yiPy[it].contains(letters) || zhPy[it].contains(letters) }
+        if (has || (raws.maxOrNull() ?: 0.0) >= 0.2) {
+            return all.indices.map { i -> i to (raws[i] + (if (yiPy[i].contains(letters) || zhPy[i].contains(letters)) 0.5 else 0.0)) }
+                .filter { it.second >= 0.2 }.sortedByDescending { it.second }.take(40).map { all[it.first] }
+        }
+        fun rank(init: String) = if (init == letters) 3 else if (init.startsWith(letters)) 2 else if (init.contains(letters)) 1 else 0
+        val ini = all.indices.map { i -> i to maxOf(rank(yiInit[i]), rank(zhInit[i])) }
+            .filter { it.second > 0 }.sortedWith(compareByDescending<Pair<Int, Int>> { it.second }.thenBy { all[it.first].yi.length }).take(40).map { all[it.first] }
+        if (ini.isNotEmpty()) return ini
+        return all.indices.map { it to raws[it] }.sortedByDescending { it.second }.take(20).filter { it.second > 0 }.map { all[it.first] }
     }
 
     fun sections(): List<String> = sents.map { it.sec }.distinct()
