@@ -80,7 +80,7 @@ object Printer {
         return pg.pages
     }
 
-    private fun save(ctx: Context, bmp: Bitmap, name: String) {
+    fun save(ctx: Context, bmp: Bitmap, name: String) {
         if (Build.VERSION.SDK_INT >= 29) {
             val v = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, name)
