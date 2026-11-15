@@ -9,8 +9,8 @@ android {
         applicationId = "com.ddopmago"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.0.3"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -19,6 +19,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    androidResources { noCompress += listOf("ogg") }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 }
 dependencies {
