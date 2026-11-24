@@ -2,7 +2,10 @@
 
 package com.ddopmago
 
+import android.content.Context
 import android.content.Intent
+import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -57,6 +60,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Repo.load(this)
+        Thread { YiIme.ensure(applicationContext) }.start()
         Lib.load(this)
         Fonts.init(this)
         FontLib.init(this)
@@ -259,6 +263,17 @@ fun LanguagePane() {
                 }
             }
         }
+        val ctx = LocalContext.current
+        Text("拼音模式", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = I18n.pyMode == 0, onClick = { I18n.setPyMode(0) }, label = { Text("凉山拼音") })
+            FilterChip(selected = I18n.pyMode == 1, onClick = { I18n.setPyMode(1) }, label = { Text("国际拼音") })
+        }
+        Text("输入法 ꅇꂷꇬ（可在其他软件里使用）", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { ctx.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }) { Text("启用输入法") }
+            OutlinedButton(onClick = { (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker() }) { Text("切换输入法") }
+        }
         Text(
             "凉山彝文界面：彝语词和句子优先取自典籍和权威机构（《规范彝文词典》），其次是正规机构（民族出版社《彝汉英常用词词汇》），再次是网上权威来源；都没有的内容显示简体中文。",
             fontSize = 12.sp, color = Color.Gray
@@ -327,7 +342,7 @@ fun FavScreen(st: Store, onOpenQuiz: (String, List<Q>) -> Unit) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(p.getOrElse(2) { "" }.ifBlank { p.getOrElse(1) { "" } }, fontSize = 15.sp)
-                                    Text(p.getOrElse(1) { "" } + " · " + p.getOrElse(3) { "" }, fontSize = 12.sp, color = Color.Gray)
+                                    Text(I18n.f("{0} · {1}", p.getOrElse(1) { "" }, p.getOrElse(3) { "" }), fontSize = 12.sp, color = Color.Gray)
                                 }
                                 Text(p.getOrElse(0) { "" }, fontSize = 11.sp, color = Color.Gray)
                             }
@@ -382,7 +397,7 @@ fun GradLine(text: String, size: TextUnit, margin: Dp) {
             val yi = cp in 0xA000..0xA48C
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(cpStr(cp), fontSize = size, color = c, fontFamily = if (yi) Fonts.family else null, maxLines = 1, softWrap = false)
-                Text(if (yi) (Repo.rom(cp.toChar()) ?: " ") else " ", fontSize = (size.value * 0.36f).sp, color = c)
+                Text(if (yi) (Repo.annot(cp.toChar()) ?: " ") else " ", fontSize = (size.value * 0.36f).sp, color = c)
             }
         }
     }
@@ -391,7 +406,7 @@ fun GradLine(text: String, size: TextUnit, margin: Dp) {
 /** 启动页：图标 + 隔 2 行 + 第一行（两边各隔 1 个大字）+ 隔 2 行 + 第二行（两边各隔 1.5 个大字）；点一下可跳过 */
 @Composable
 fun SplashScreen(onDone: () -> Unit) {
-    LaunchedEffect(Unit) { Handler(Looper.getMainLooper()).postDelayed({ onDone() }, 2800) }
+    LaunchedEffect(Unit) { Handler(Looper.getMainLooper()).postDelayed({ onDone() }, 1500) }
     BoxWithConstraints(
         Modifier.fillMaxSize().background(Color.White)
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onDone() }
