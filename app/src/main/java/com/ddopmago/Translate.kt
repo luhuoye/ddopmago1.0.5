@@ -41,7 +41,7 @@ fun SentenceScreen(st: Store, query: String, onQuery: (String) -> Unit) {
             Text("输入彝文→译成中文；输入中文→译成彝文；输入拼音→按相似度排序（相似度很低时按首字母拼音法）", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.weight(1f))
             TextButton(onClick = { onQuery("") }) { Text("清空") }
         }
-        Box(Modifier.padding(horizontal = 12.dp)) { InputBox(query, "用下方键盘输入彝文、中文或拼音…") { kb = true } }
+        Box(Modifier.padding(horizontal = 12.dp)) { InputBox(query, "用下方键盘输入彝文、中文或拼音…", { onQuery(query + it) }) { kb = true } }
         LazyColumn(Modifier.weight(1f).padding(horizontal = 8.dp)) {
             if (dictRes.isNotEmpty()) {
                 item { Text("词典（汉→彝）", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp)) }
