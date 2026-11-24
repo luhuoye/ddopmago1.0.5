@@ -14,12 +14,12 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
-import androidx.lifecycle.ViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.ViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 /** 系统输入法「ꅇꂷꇬ」：在手机的其他软件里也能用本软件的凉山彝文键盘（含拼音/首字母/撇号隔字符输入法引擎） */
 class YiImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -44,9 +44,9 @@ class YiImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
 
     override fun onCreateInputView(): View {
         window.window?.decorView?.let {
-            ViewTreeLifecycleOwner.set(it, this)
-            ViewTreeViewModelStoreOwner.set(it, this)
-            ViewTreeSavedStateRegistryOwner.set(it, this)
+            it.setViewTreeLifecycleOwner(this)
+            it.setViewTreeViewModelStoreOwner(this)
+            it.setViewTreeSavedStateRegistryOwner(this)
         }
         val v = ComposeView(this)
         reg.currentState = Lifecycle.State.RESUMED
