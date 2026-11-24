@@ -154,10 +154,9 @@ class FontPart(private val src: () -> FontParser.Src?, private val tf: () -> Typ
 
 class FontEntry(
     val id: String, val name: String, val builtin: Boolean, val parts: List<FontPart>,
-    val appFont: Boolean = false, val file: File? = null, val note: String = ""
+    appFont: Boolean = false, val file: File? = null, val note: String = ""
 ) {
     private var cache: IntArray? = null
-    val removable: Boolean get() = !builtin
 
     fun ready() = parts.all { it.info != null }
     fun cps(): IntArray {
