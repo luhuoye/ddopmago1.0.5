@@ -45,7 +45,7 @@ object Share {
     } catch (e: Throwable) { null }
 
     fun send(ctx: Context, title: String, qs: List<Q>) {
-        if (qs.isEmpty()) { Toast.makeText(ctx, "没有可分享的题目", Toast.LENGTH_SHORT).show(); return }
+        if (qs.isEmpty()) { Toast.makeText(ctx, I18n.t("没有可分享的题目"), Toast.LENGTH_SHORT).show(); return }
         val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
         val name = title.replace(Regex("[\\\\/:*?\"<>|\\s]+"), "_").take(40).ifBlank { "彝文试卷" } + ".ddop"
         val f = File(dir, name)
@@ -57,7 +57,7 @@ object Share {
             putExtra(Intent.EXTRA_SUBJECT, name)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        ctx.startActivity(Intent.createChooser(i, "分享 $name").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        ctx.startActivity(Intent.createChooser(i, I18n.f("分享 {0}", name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun importUri(ctx: Context, uri: Uri, st: Store): String {
@@ -65,7 +65,7 @@ object Share {
         val s = decode(b) ?: return "不是有效的 .ddop 文件"
         st.addSet(s)
         st.addRecord("导入", s.title, "${s.qs.size} 题")
-        return "已导入「${s.title}」，共 ${s.qs.size} 题（在 做题 → 共享 里作答）"
+        return I18n.f("已导入「{0}」，共 {1} 题（在 做题 → 共享 里作答）", s.title, s.qs.size)
     }
 }
 
