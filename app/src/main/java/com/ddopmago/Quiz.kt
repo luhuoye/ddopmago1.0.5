@@ -122,7 +122,7 @@ fun QuizScreen(st: Store) {
                     Repo.bookTags().forEach { t -> FilterChip(selected = book == t, onClick = { book = t }, label = { Text(Repo.bookName(t)) }) }
                 }
             }
-            Text("已做 $total 题，累计得分 ${"%.1f".format(score)}", color = Color.Gray, fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
+            Text(I18n.f("已做 {0} 题，累计得分 {1}", total, "%.1f".format(score)), color = Color.Gray, fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
             val cur = q
             if (cur == null) {
                 Text(if (mode == 9) "还没有收藏的题目" else "加载中…", color = Color.Gray)
@@ -150,7 +150,7 @@ fun QuizScreen(st: Store) {
                 if (done) {
                     val msg = when {
                         got >= 1.0 -> "✔ 完全正确"
-                        got > 0 -> "◐ 部分正确（得 ${"%.1f".format(got)} 分）"
+                        got > 0 -> I18n.f("◐ 部分正确（得 {0} 分）", "%.1f".format(got))
                         else -> "✘ 回答错误（已加入错题本）"
                     }
                     Text(msg, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
@@ -236,7 +236,7 @@ fun ExamIntro(st: Store, ex: ExamState) {
             }
         }
         item {
-            Text("历史成绩" + (st.best()?.let { "（最高 $it 分）" } ?: ""), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+            Text(I18n.f("历史成绩{0}", st.best()?.let { I18n.f("（最高 {0} 分）", it) } ?: ""), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
             if (st.scores.isEmpty()) Text("还没有成绩", color = Color.Gray)
         }
         itemsIndexed(st.scores.take(15)) { _, s ->
@@ -254,7 +254,7 @@ fun ExamRun(st: Store, ex: ExamState) {
     var confirm by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp)) {
-            Text("${ex.title} · 第 ${ex.idx + 1} / ${ex.qs.size} 题 · ${Repo.group(q.type)} · ${Repo.ptsOf(q)} 分", color = Color.Gray, fontSize = 13.sp)
+            Text(I18n.f("{0} · 第 {1} / {2} 题 · {3} · {4} 分", ex.title, ex.idx + 1, ex.qs.size, Repo.group(q.type), Repo.ptsOf(q)), color = Color.Gray, fontSize = 13.sp)
             LinearProgressIndicator(progress = { (ex.idx + 1f) / ex.qs.size }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
             QuestionCard(q)
             if (!typed(q)) {
@@ -284,7 +284,7 @@ fun ExamRun(st: Store, ex: ExamState) {
         AlertDialog(
             onDismissRequest = { confirm = false },
             title = { Text("确认交卷？") },
-            text = { Text(if (blank > 0) "还有 $blank 题未作答，交卷后按 0 分计算。" else "全部题目已作答。") },
+            text = { Text(if (blank > 0) I18n.f("还有 {0} 题未作答，交卷后按 0 分计算。", blank) else "全部题目已作答。") },
             confirmButton = { TextButton(onClick = { confirm = false; ex.submit(st) }) { Text("交卷") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("继续答题") } }
         )
@@ -302,7 +302,7 @@ fun ExamResult(st: Store, ex: ExamState) {
             AppCard {
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("${ex.score}", fontSize = 64.sp, fontWeight = FontWeight.Bold, color = Red)
-                    Text("${ex.title} · 满分 $full · $grade", color = Color.Gray)
+                    Text(I18n.f("{0} · 满分 {1} · {2}", ex.title, full, grade), color = Color.Gray)
                     ex.qs.map { Repo.group(it.type) }.distinct().forEach { g ->
                         val idxs = ex.qs.indices.filter { Repo.group(ex.qs[it].type) == g }
                         val gf = idxs.sumOf { Repo.ptsOf(ex.qs[it]) }
@@ -326,7 +326,7 @@ fun ExamResult(st: Store, ex: ExamState) {
                 val mine = if (!typed(q)) ex.ans[i].toIntOrNull()?.let { q.options[it] } else ex.ans[i].ifBlank { null }
                 AppCard {
                     Column(Modifier.padding(14.dp)) {
-                        Text("第 ${i + 1} 题 · ${Repo.group(q.type)} · 得 ${"%.1f".format(ex.got[i] * Repo.ptsOf(q))}/${Repo.ptsOf(q)} 分", fontSize = 12.sp, color = Red)
+                        Text(I18n.f("第 {0} 题 · {1} · 得 {2}/{3} 分", i + 1, Repo.group(q.type), "%.1f".format(ex.got[i] * Repo.ptsOf(q)), Repo.ptsOf(q)), fontSize = 12.sp, color = Red)
                         Text(q.prompt, fontSize = 13.sp, color = Color.Gray)
                         QShown(q)
                         Text("你的答案：", fontSize = 14.sp, color = Color(0xFFC62828))
@@ -384,7 +384,7 @@ fun WrongScreen(st: Store, onStart: (String, List<Q>) -> Unit) {
     LazyColumn(Modifier.fillMaxSize().padding(8.dp)) {
         item {
             Row(Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = { onStart("错题重做", st.wrong.toList()) }, enabled = st.wrong.isNotEmpty()) { Text("重做全部 (${st.wrong.size})") }
+                Button(onClick = { onStart("错题重做", st.wrong.toList()) }, enabled = st.wrong.isNotEmpty()) { Text(I18n.f("重做全部 ({0})", st.wrong.size)) }
                 ShareButton("错题本", st.wrong.toList())
             }
             if (st.wrong.isEmpty()) Text("还没有错题。练习、考试、试卷里答错的题会自动记录在这里，并推荐相似题。", color = Color.Gray, modifier = Modifier.padding(12.dp))
@@ -405,12 +405,12 @@ fun WrongScreen(st: Store, onStart: (String, List<Q>) -> Unit) {
                     }
                     if (open) {
                         val sim = remember(q.id) { Repo.similar(q, 3) }
-                        Text("相似题推荐（${sim.size}）", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(I18n.f("相似题推荐（{0}）", sim.size), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         sim.forEachIndexed { i, s ->
                             Text("${i + 1}. ${s.prompt}", fontSize = 12.sp, color = Color.Gray)
                             QShown(s)
                         }
-                        Button(onClick = { onStart("相似题练习", sim) }, enabled = sim.isNotEmpty(), modifier = Modifier.padding(top = 6.dp)) { Text("练习这 ${sim.size} 道相似题") }
+                        Button(onClick = { onStart("相似题练习", sim) }, enabled = sim.isNotEmpty(), modifier = Modifier.padding(top = 6.dp)) { Text(I18n.f("练习这 {0} 道相似题", sim.size)) }
                     }
                 }
             }
@@ -437,14 +437,14 @@ fun SharedScreen(st: Store, exam: ExamState, onStart: (String, List<Q>) -> Unit)
                     }
                 }
             }
-            Text("已收到的试卷 / 题目（${st.sets.size}）", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
+            Text(I18n.f("已收到的试卷 / 题目（{0}）", st.sets.size), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
             if (st.sets.isEmpty()) Text("暂无。", color = Color.Gray, modifier = Modifier.padding(horizontal = 12.dp))
         }
         items(st.sets.toList()) { s ->
             AppCard {
                 Column(Modifier.padding(14.dp)) {
                     Text(s.title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    Text("${s.qs.size} 题 · 满分 ${s.qs.sumOf { Repo.ptsOf(it) }} · ${s.ts}", fontSize = 12.sp, color = Color.Gray)
+                    Text(I18n.f("{0} 题 · 满分 {1} · {2}", s.qs.size, s.qs.sumOf { Repo.ptsOf(it) }, s.ts), fontSize = 12.sp, color = Color.Gray)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
                         Button(onClick = { onStart(s.title, s.qs) }) { Text("开始作答") }
                         ShareButton(s.title, s.qs)
@@ -493,7 +493,7 @@ fun PrintScreen(st: Store, exam: ExamState) {
                 val b = Lib.books.firstOrNull { it.id == book }
                 if (b == null) items(Lib.books) { x -> AppCard(Modifier.clickable { book = x.id }) { Text(x.title + "  ›", modifier = Modifier.padding(16.dp)) } }
                 else {
-                    item { TextButton(onClick = { book = "" }) { Text("‹ 返回书籍列表（${b.title}）") } }
+                    item { TextButton(onClick = { book = "" }) { Text(I18n.f("‹ 返回书籍列表（{0}）", b.title)) } }
                     items(b.chapters) { c -> PrintRow(c.t) { Printer.print(ctx, b.title + "_" + c.t, Printer.textLines(b.title + " · " + c.t, c.text)) } }
                 }
             }
