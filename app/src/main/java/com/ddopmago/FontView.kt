@@ -82,13 +82,13 @@ object FontPng {
     fun save(ctx: Context, glyphs: List<Pair<String, Typeface?>>, name: String = "font") {
         if (glyphs.isEmpty()) return
         val app = ctx.applicationContext
-        Toast.makeText(app, "正在保存 PNG…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(app, I18n.t("正在保存 PNG…"), Toast.LENGTH_SHORT).show()
         Thread {
             val msg = try {
                 val pages = if (glyphs.size == 1) listOf(single(glyphs[0])) else glyphs.chunked(160).map { sheet(it) }
                 val stamp = System.currentTimeMillis() / 1000
                 pages.forEachIndexed { i, b -> Printer.save(app, b, "${name}_${stamp}_${i + 1}.png") }
-                "已保存 ${pages.size} 张 PNG 到 图片/ddopmago"
+                I18n.f("已保存 {0} 张 PNG 到 图片/ddopmago", pages.size)
             } catch (t: Throwable) { "保存失败：" + (t.message ?: t.javaClass.simpleName) }
             Handler(Looper.getMainLooper()).post { Toast.makeText(app, msg, Toast.LENGTH_LONG).show() }
         }.start()
@@ -158,7 +158,7 @@ fun AppFontsPane() {
             }
             val s = FontLib.bigStatus
             if (s == "installing") Text("正在安装 Engenu 字体（首次启动解压，请稍候）…", fontSize = 12.sp, color = Red, modifier = Modifier.padding(8.dp))
-            if (s.startsWith("error")) Text("Engenu 字体安装失败：" + s.removePrefix("error:"), fontSize = 12.sp, color = Red, modifier = Modifier.padding(8.dp))
+            if (s.startsWith("error")) Text(I18n.f("Engenu 字体安装失败：{0}", s.removePrefix("error:")), fontSize = 12.sp, color = Red, modifier = Modifier.padding(8.dp))
         }
         itemsIndexed(Fonts.items) { i, f ->
             AppCard(Modifier.clickable { Fonts.select(i) }) {
@@ -201,17 +201,17 @@ fun FontLibPane() {
         item {
             Button(onClick = { picker.launch(arrayOf("*/*")) }, modifier = Modifier.padding(4.dp)) { Text("添加字体（ttf / otf / ttc）") }
             Text("自己添加的字体可以删除，但只能用来查看，不能用作软件字体；内置字体不能删除。", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 8.dp))
-            Text("内置字体（${FontLib.builtin.size}）", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp))
+            Text(I18n.f("内置字体（{0}）", FontLib.builtin.size), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp))
         }
         items(FontLib.builtin) { e -> FontRow(e, null) }
-        item { Text("我的字体（${FontLib.user.size}）", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp)) }
+        item { Text(I18n.f("我的字体（{0}）", FontLib.user.size), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp)) }
         items(FontLib.user.toList()) { e -> FontRow(e) { del = e } }
     }
     del?.let { e ->
         AlertDialog(
             onDismissRequest = { del = null },
             title = { Text("删除字体") },
-            text = { Text("确定删除「${e.name}」吗？") },
+            text = { Text(I18n.f("确定删除「{0}」吗？", e.name)) },
             confirmButton = { TextButton(onClick = { FontLib.removeUser(e); del = null }) { Text("删除") } },
             dismissButton = { TextButton(onClick = { del = null }) { Text("取消") } }
         )
@@ -225,7 +225,7 @@ private fun FontRow(e: FontEntry, onDelete: (() -> Unit)?) {
             Column(Modifier.weight(1f)) {
                 Text(e.name, fontSize = 15.sp)
                 val ready = e.ready()
-                Text((if (ready) "${e.cps().size} 个字符" else "未就绪（安装中或文件缺失）") + (if (e.note.isNotEmpty()) " · " + e.note else ""), fontSize = 11.sp, color = Color.Gray)
+                Text((if (ready) I18n.f("{0} 个字符", e.cps().size) else "未就绪（安装中或文件缺失）") + (if (e.note.isNotEmpty()) " · " + e.note else ""), fontSize = 11.sp, color = Color.Gray)
                 if (ready) {
                     val cps = e.cps()
                     Text(cps.take(8).joinToString("") { cpStr(it) }, fontSize = 22.sp, fontFamily = e.familyFor(cps[0]), maxLines = 1)
@@ -276,11 +276,11 @@ fun LayoutDialog(onDismiss: () -> Unit) {
         title = { Text("每页的行列") },
         text = {
             Column {
-                Text("列数：$c", fontSize = 15.sp)
+                Text(I18n.f("列数：{0}", c), fontSize = 15.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(-1, 1).forEach { d -> OutlinedButton(onClick = { c = (c + d).coerceIn(1, 12) }) { Text(if (d > 0) "+$d" else "$d") } }
                 }
-                Text("行数：$r（每页 ${c * r} 个字）", fontSize = 15.sp, modifier = Modifier.padding(top = 10.dp))
+                Text(I18n.f("行数：{0}（每页 {1} 个字）", r, c * r), fontSize = 15.sp, modifier = Modifier.padding(top = 10.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(-100, -50, -10, -1, 1, 10, 50, 100).forEach { d -> OutlinedButton(onClick = { r = (r + d).coerceIn(1, 1000) }) { Text(if (d > 0) "+$d" else "$d") } }
                 }
@@ -319,7 +319,7 @@ fun SelBar(n: Int, modifier: Modifier, onCopy: () -> Unit, onSave: () -> Unit, o
         modifier.fillMaxWidth().background(Color(0xFF263238)).padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("已选 $n", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Text(I18n.f("已选 {0}", n), color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
         Button(onClick = onCopy) { Text("复制") }
         Button(onClick = onSave) { Text("保存") }
         extra()
@@ -336,7 +336,7 @@ fun CharDialog(cp: Int, fam: FontFamily?, extra: String?, onDismiss: () -> Unit)
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Text(cpStr(cp), fontSize = 80.sp, fontFamily = fam) }
-                Text("编码：U+" + cp.toString(16).uppercase().padStart(4, '0') + "（十进制 $cp）", fontSize = 15.sp)
+                Text(I18n.f("编码：U+{0}（十进制 {1}）", cp.toString(16).uppercase().padStart(4, '0'), cp), fontSize = 15.sp)
                 if (extra != null) Text(extra, fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 6.dp))
             }
         },
@@ -422,7 +422,7 @@ fun FontViewPane() {
                     OutlinedButton(onClick = { layout = true }) { Text("行列") }
                     OutlinedButton(onClick = { showInput = !showInput; if (!showInput) kb = false }) { Text("输入") }
                 }
-                Text("共 ${cps.size} 字 · 第 ${pg + 1}/$pages 页 · 每页 ${ViewPrefs.cols} 列 × ${ViewPrefs.rows} 行", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
+                Text(I18n.f("共 {0} 字 · 第 {1}/{2} 页 · 每页 {3} 列 × {4} 行", cps.size, pg + 1, pages, ViewPrefs.cols, ViewPrefs.rows), fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
                 if (!entry.ready()) Text(if (status == "installing") "字体正在安装，请稍候…" else "字体尚未就绪", fontSize = 13.sp, color = Red, modifier = Modifier.padding(12.dp))
                 if (pages > 1) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
@@ -483,10 +483,10 @@ fun SameTextPane() {
         else FontLib.all().filter { e -> e.ready() && input.all { e.has(it) } }.sortedBy { FontLib.sortKey(it.name) }
     }
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) { InputBox(text, "输入文字，查看哪些字体里有它") { kb = true } }
+        Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) { InputBox(text, "输入文字，查看哪些字体里有它", { text += it }) { kb = true } }
         Text(
             if (input.isEmpty()) "输入文字后，列出所有含有这些文字的字体（按字体名拼音排序）；多于一行的内容先折叠，点击展开/收起"
-            else "共 ${fonts.size} 个字体含有这些文字",
+            else I18n.f("共 {0} 个字体含有这些文字", fonts.size),
             fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
         )
         LazyColumn(Modifier.weight(1f).padding(horizontal = 8.dp)) {
@@ -553,7 +553,7 @@ fun MultiFontPane() {
         } else {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = { pickDlg = true }, modifier = Modifier.weight(1f)) { Text("选择字体（已选 ${ids.size}）") }
+                    OutlinedButton(onClick = { pickDlg = true }, modifier = Modifier.weight(1f)) { Text(I18n.f("选择字体（已选 {0}）", ids.size)) }
                     OutlinedButton(onClick = { layout = true }) { Text("行列") }
                 }
                 if (ids.isNotEmpty()) {
@@ -565,7 +565,7 @@ fun MultiFontPane() {
                 }
                 Text(
                     if (ids.isEmpty()) "选择多个字体，把它们的文字合并显示；有冲突的文字显示排在前面的字体，右上角红色数字是与它冲突的字体数量。Engenu-VCMS-N 与 Engenu-VCMS-R 不能同时选择。"
-                    else "共 ${union.size} 个文字 · 第 ${pg + 1}/$pages 页 · 每页 ${ViewPrefs.cols} 列 × ${ViewPrefs.rows} 行",
+                    else I18n.f("共 {0} 个文字 · 第 {1}/{2} 页 · 每页 {3} 列 × {4} 行", union.size, pg + 1, pages, ViewPrefs.cols, ViewPrefs.rows),
                     fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
                 if (pages > 1) {
@@ -593,7 +593,7 @@ fun MultiFontPane() {
                     extra = {
                         Button(onClick = {
                             if (sel.size == 1 && badge(sel[0]) > 0) choose = sel[0]
-                            else Toast.makeText(ctx, "请只选择一个有冲突（右上角有红色数字）的文字", Toast.LENGTH_SHORT).show()
+                            else Toast.makeText(ctx, I18n.t("请只选择一个有冲突（右上角有红色数字）的文字"), Toast.LENGTH_SHORT).show()
                         }) { Text("选择字体") }
                     }
                 )
