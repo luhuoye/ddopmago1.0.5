@@ -50,6 +50,8 @@ object Repo {
     class Rad(val no: Int, val rad: String, val groups: List<Pair<Int, String>>)
     var radicals: List<Rad> = emptyList()
     var bookQs: List<Q> = emptyList()
+    class CInfo(val py: String, val ipa: String, val mean: String, val cat: String)
+    val chars = HashMap<Char, CInfo>()
 
     private fun read(c: Context, name: String) =
         c.assets.open(name).bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -57,10 +59,11 @@ object Repo {
     fun isYi(c: Char) = c.code in 0xA000..0xA48C
     fun isHan(c: Char) = c.code in 0x4E00..0x9FFF
     fun rom(c: Char): String? = map[c]
+    /** 注音显示：凉山拼音，或国际拼音（国际音标）——由「拼音模式」决定 */
+    fun annot(c: Char): String? = if (I18n.pyMode == 1) (chars[c]?.ipa?.takeIf { it.isNotEmpty() } ?: map[c]) else map[c]
     fun pinyin(s: String): String = s.filter { isYi(it) }.map { map[it] ?: "?" }.joinToString(" ")
     fun isAncientCp(cp: Int) = cp in 0xE000..0xF8FF || cp in 0xF0000..0xFFFFD
     fun hasYi(s: String) = s.codePoints().anyMatch { it in 0xA000..0xA48C || isAncientCp(it) }
-    fun dictSize() = dictS.size
 
     fun load(c: Context) {
         if (sents.isNotEmpty()) return
@@ -88,6 +91,10 @@ object Repo {
         }
         val ba = JSONArray(read(c, "bookqs.json"))
         bookQs = (0 until ba.length()).map { Q.from(ba.getJSONObject(it)) }
+        runCatching {
+            val ca = JSONArray(read(c, "chars.json"))
+            for (i in 0 until ca.length()) { val e = ca.getJSONArray(i); chars[e.getString(0)[0]] = CInfo(e.getString(1), e.getString(2), e.getString(3), e.getString(4)) }
+        }
         words = read(c, "words.txt").lines().filter { it.isNotBlank() }
         // 中文键盘：字频表 + 下一字联想
         val freq = HashMap<Char, Int>(); val nx = HashMap<Char, HashMap<Char, Int>>(); val st = HashMap<Char, Int>()
@@ -109,14 +116,6 @@ object Repo {
     }
 
     fun clean(s: String) = s.filter { it.isLetterOrDigit() }.lowercase()
-
-    /** 彝文拼音候选：先完全匹配，再前缀匹配 */
-    fun cands(b: String): List<Char> {
-        if (b.isEmpty()) return emptyList()
-        val exact = roman.filter { it.first == b }.map { it.second }
-        val pre = roman.filter { it.first != b && it.first.startsWith(b) }.map { it.second }
-        return (exact + pre).distinct().take(60)
-    }
 
     /** 中文联想：根据上一个字给出常见的下一个字 */
     fun zhNext(text: String): List<Char> {
@@ -238,6 +237,9 @@ object Repo {
         if (ini.isNotEmpty()) return ini
         return all.indices.map { it to raws[it] }.sortedByDescending { it.second }.take(20).filter { it.second > 0 }.map { all[it.first] }
     }
+
+    /** 输入法词库用：翻译板块里的彝文句子和词典例词（只要彝文，不要中文），附带频次 */
+    fun allSentsYi(): List<Pair<String, Int>> = sents.map { it.yi to 30 } + dictS.map { it.yi to 60 }
 
     fun sections(): List<String> = sents.map { it.sec }.distinct()
 
