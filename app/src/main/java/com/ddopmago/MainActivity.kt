@@ -266,9 +266,8 @@ fun LanguagePane() {
         val ctx = LocalContext.current
         Text("拼音模式", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = I18n.pyMode == 0, onClick = { I18n.setPyMode(0) }, label = { Text("凉山拼音") })
-            FilterChip(selected = I18n.pyMode == 1, onClick = { I18n.setPyMode(1) }, label = { Text("国际拼音") })
-        }
+            FilterChip(selected = I18n.pyMode == 0, onClick = { I18n.updatePyMode(0) }, label = { Text("凉山拼音") })
+FilterChip(selected = I18n.pyMode == 1, onClick = { I18n.updatePyMode(1) }, label = { Text("国际拼音") })        }
         Text("输入法 ꅇꂷꇬ（可在其他软件里使用）", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { ctx.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }) { Text("启用输入法") }
