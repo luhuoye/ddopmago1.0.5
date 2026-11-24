@@ -34,11 +34,11 @@ data class Chap(val t: String, val part: String, val text: String)
 data class Book(val id: String, val title: String, val lang: String, val chapters: List<Chap>)
 
 fun PQ.toQ(paper: String): Q {
-    val head = "（$paper 第${n}题）"
+    val head = I18n.f("（{0} 第{1}题）", paper, n)
     return when (t) {
-        "c" -> Q(0, "选择题$head", stem, opts, (ans[0] - 'A').coerceIn(0, opts.size - 1), "参考答案：$ans", "paper", pts)
-        "j" -> Q(2, "判断题$head", stem, listOf("正确", "错误"), if (ans == "A") 0 else 1, "参考答案：" + (if (ans == "A") "正确" else "错误"), "paper", pts)
-        else -> Q(7, "填空题$head", stem, listOf(ans), 0, "参考答案：$ans", "paper", pts)
+        "c" -> Q(0, I18n.f("选择题{0}", head), stem, opts, (ans[0] - 'A').coerceIn(0, opts.size - 1), I18n.f("参考答案：{0}", ans), "paper", pts)
+        "j" -> Q(2, I18n.f("判断题{0}", head), stem, listOf("正确", "错误"), if (ans == "A") 0 else 1, "参考答案：" + (if (ans == "A") "正确" else "错误"), "paper", pts)
+        else -> Q(7, I18n.f("填空题{0}", head), stem, listOf(ans), 0, I18n.f("参考答案：{0}", ans), "paper", pts)
     }
 }
 
@@ -221,7 +221,7 @@ fun BooksScreen(st: Store, onStart: (String, List<Q>) -> Unit) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             MixText(b.title, 19.sp, 17.sp)
-                            Text("${b.chapters.size} ${if (b.id == "story") "则故事" else "节/章"} · 点击查看目录", fontSize = 12.sp, color = Color.Gray)
+                            Text(I18n.f("{0} {1} · 点击查看目录", b.chapters.size, if (b.id == "story") "则故事" else "节/章"), fontSize = 12.sp, color = Color.Gray)
                             Text(st.bookProgLabel("book:" + b.id, b.chapters.size), fontSize = 11.sp, color = Red)
                         }
                         Text("›", color = Color.Gray)
@@ -232,7 +232,7 @@ fun BooksScreen(st: Store, onStart: (String, List<Q>) -> Unit) {
         chap < 0 -> Column(Modifier.fillMaxSize()) {
             BackBar("目录 · " + book.title.take(24), { bookId = null }) {
                 Text(st.bookProgLabel("book:" + book.id, book.chapters.size), fontSize = 12.sp, color = Red)
-                Button(onClick = { onStart("复习·" + book.title, Repo.bookQs.filter { it.tag == book.id }.shuffled().take(10)) }) { Text("复习本书") }
+                if (Repo.bookQs.any { it.tag == book.id }) Button(onClick = { onStart("复习·" + book.title, Repo.bookQs.filter { it.tag == book.id }.shuffled().take(10)) }) { Text("复习本书") }
             }
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
                 var lastPart = "\u0000"
@@ -264,7 +264,7 @@ fun BooksScreen(st: Store, onStart: (String, List<Q>) -> Unit) {
                 Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { if (chap > 0) chap-- }, enabled = chap > 0, modifier = Modifier.weight(1f)) { Text("上一节") }
                     OutlinedButton(onClick = { chap = -1 }, modifier = Modifier.weight(1f)) { Text("目录") }
-                    OutlinedButton(onClick = { onStart("复习·" + book.title, Repo.bookQs.filter { it.tag == book.id }.shuffled().take(10)) }, modifier = Modifier.weight(1f)) { Text("复习") }
+                    if (Repo.bookQs.any { it.tag == book.id }) OutlinedButton(onClick = { onStart("复习·" + book.title, Repo.bookQs.filter { it.tag == book.id }.shuffled().take(10)) }, modifier = Modifier.weight(1f)) { Text("复习") }
                     OutlinedButton(onClick = { if (chap < book.chapters.size - 1) chap++ }, enabled = chap < book.chapters.size - 1, modifier = Modifier.weight(1f)) { Text("下一节") }
                 }
             }
@@ -287,7 +287,7 @@ fun PapersScreen(st: Store) {
                                 Text(x.short, fontSize = 16.sp)
                                 val best = st.paperBest(x.id)
                                 Text(
-                                    (if (x.qs.isEmpty()) "仅试卷原文" else "可在线答题 ${x.qs.size} 题 / ${x.autoPts} 分") + (best?.let { " · 最高 $it 分" } ?: "") + (if (x.qs.isEmpty()) "" else " · " + st.progLabel("paper:${x.id}")),
+                                    (if (x.qs.isEmpty()) "仅试卷原文" else I18n.f("可在线答题 {0} 题 / {1} 分", x.qs.size, x.autoPts)) + (best?.let { I18n.f(" · 最高 {0} 分", it) } ?: "") + (if (x.qs.isEmpty()) "" else " · " + st.progLabel("paper:${x.id}")),
                                     fontSize = 12.sp, color = Color.Gray
                                 )
                             }
@@ -339,7 +339,7 @@ fun PaperQuiz(p: Paper, st: Store) {
                 AppCard {
                     Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("$score", fontSize = 60.sp, fontWeight = FontWeight.Bold, color = Red)
-                        Text("在线判分题满分 ${p.autoPts} 分（作文、阅读等请对照「参考答案」自评）", color = Color.Gray, fontSize = 13.sp)
+                        Text(I18n.f("在线判分题满分 {0} 分（作文、阅读等请对照「参考答案」自评）", p.autoPts), color = Color.Gray, fontSize = 13.sp)
                         Button(onClick = { ans.indices.forEach { ans[it] = "" }; idx = 0; done = false }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("重做") }
                     }
                 }
@@ -349,12 +349,12 @@ fun PaperQuiz(p: Paper, st: Store) {
                 val q = p.qs[i]
                 AppCard {
                     Column(Modifier.padding(14.dp)) {
-                        Text("第 ${q.n} 题", fontSize = 12.sp, color = Red)
+                        Text(I18n.f("第 {0} 题", q.n), fontSize = 12.sp, color = Red)
                         MixText(q.stem, 20.sp, 15.sp)
                         if (q.t == "c") q.opts.forEachIndexed { k, o -> MixText("${'A' + k}. $o", 18.sp, 14.sp, Color.DarkGray) }
-                        Text("你的答案：" + (if (ans[i].isBlank()) "未作答" else if (q.t == "f") "" else ans[i]), color = Color(0xFFC62828), fontSize = 14.sp)
+                        Text(I18n.f("你的答案：{0}", if (ans[i].isBlank()) "未作答" else if (q.t == "f") "" else ans[i]), color = Color(0xFFC62828), fontSize = 14.sp)
                         if (q.t == "f" && ans[i].isNotBlank()) MixText(ans[i], 20.sp, 15.sp, Color(0xFFC62828))
-                        Text("正确答案：" + (if (q.t == "f") "" else (if (q.t == "j") (if (q.ans == "A") "A 正确" else "B 错误") else q.ans)), color = Color(0xFF2E7D32), fontSize = 14.sp)
+                        Text(I18n.f("正确答案：{0}", if (q.t == "f") "" else (if (q.t == "j") (if (q.ans == "A") "A 正确" else "B 错误") else q.ans)), color = Color(0xFF2E7D32), fontSize = 14.sp)
                         if (q.t == "f") MixText(q.ans, 20.sp, 15.sp, Color(0xFF2E7D32))
                     }
                 }
@@ -365,7 +365,7 @@ fun PaperQuiz(p: Paper, st: Store) {
     val q = p.qs[idx]
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp)) {
-            Text("第 ${idx + 1} / ${p.qs.size} 题（原卷第 ${q.n} 题）· ${q.pts} 分", color = Color.Gray, fontSize = 13.sp)
+            Text(I18n.f("第 {0} / {1} 题（原卷第 {2} 题）· {3} 分", idx + 1, p.qs.size, q.n, q.pts), color = Color.Gray, fontSize = 13.sp)
             LinearProgressIndicator(progress = { (idx + 1f) / p.qs.size }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
             if (q.note.isNotBlank()) Text(q.note, fontSize = 13.sp, color = Red, modifier = Modifier.padding(bottom = 4.dp))
             AppCard { Column(Modifier.padding(16.dp)) { MixText(q.stem, 22.sp, 17.sp) } }
@@ -396,7 +396,7 @@ fun PaperQuiz(p: Paper, st: Store) {
         AlertDialog(
             onDismissRequest = { confirm = false },
             title = { Text("确认交卷？") },
-            text = { Text(if (blank > 0) "还有 $blank 题未作答，按 0 分计算。" else "全部题目已作答。") },
+            text = { Text(if (blank > 0) I18n.f("还有 {0} 题未作答，按 0 分计算。", blank) else "全部题目已作答。") },
             confirmButton = {
                 TextButton(onClick = {
                     confirm = false
