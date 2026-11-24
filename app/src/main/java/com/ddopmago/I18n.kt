@@ -53,10 +53,7 @@ object I18n {
         return m
     }
 
-    fun updatePyMode(m: Int) {
-        pyMode = m
-        sp.edit().putInt("pym", m).apply()
-    }
+    fun setPyMode(m: Int) { pyMode = m; sp.edit().putInt("pym", m).apply() }
 
     fun set(l: String) {
         lang = l; chosen = true
