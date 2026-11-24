@@ -152,11 +152,11 @@ class Store(ctx: Context) {
     /** 完整学习一次：次数 +1，下一轮进度从 0 开始 */
     fun completeProg(key: String) { val c = getProg(key); prog[key] = intArrayOf(0, c[1] + 1); saveProg() }
     /** 显示格式："50%0次" = 完整学习 0 次，本次学习进度 50% */
-    fun progLabel(key: String): String { val c = getProg(key); return "${c[0]}%${c[1]}次" }
+    fun progLabel(key: String): String { val c = getProg(key); return I18n.f("{0}%{1}次", c[0], c[1]) }
     fun bookProgLabel(prefix: String, n: Int): String {
         if (n <= 0) return "0%0次"
         val ps = (0 until n).map { getProg("$prefix:$it") }
-        return "${ps.sumOf { it[0] } / n}%${ps.minOf { it[1] }}次"
+        return I18n.f("{0}%{1}次", ps.sumOf { it[0] } / n, ps.minOf { it[1] })
     }
 
     // ---------- 积分：只有三种来源——游戏里的优秀操作、做对题、看资料；每次 0.1~1 分 ----------
