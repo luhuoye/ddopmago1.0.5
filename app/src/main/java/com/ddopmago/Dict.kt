@@ -84,7 +84,7 @@ fun WordHub(st: Store) {
                     top == 0 -> "输入拼音或彝文检索"
                     csub == 1 -> "输入拼音查字，如 ne"
                     else -> "输入拼音筛选，如 ne"
-                }) { kb = true }
+                }, { q += it }) { kb = true }
             }
         }
         Box(Modifier.weight(1f)) {
@@ -119,14 +119,19 @@ fun YiHanQuery(q: String, st: Store, onOpen: (Pair<MdictFile, Int>) -> Unit) {
     val a = remember(k) { if (k.isEmpty()) emptyList() else Repo.searchDict(k).take(40) }
     val b = remember(k, Mdict.status) { if (k.isEmpty()) emptyList() else Mdict.dicts.flatMap { d -> d.search(k, 40).map { d to it } } }
     val c = remember(k) { AncientData.byMeaning(k).take(40) }
+    var ch by remember { mutableStateOf<Char?>(null) }
+    val d1165 = remember(k) {
+        if (k.isEmpty()) emptyList()
+        else Repo.chars.entries.filter { (_, v) -> v.mean.contains(k) || v.py.equals(k, true) || v.ipa.contains(k) }.map { it.key to it.value }.take(30)
+    }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
         if (k.isEmpty()) item {
             Text("同时查询：规范彝文词典（例词）、2008词典（彝汉英常用词词汇）、古彝文（按释义）。", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(12.dp))
             if (Mdict.status != "ready") Text(if (Mdict.status == "installing") "2008词典正在安装，请稍候…" else "2008词典：" + Mdict.status, fontSize = 12.sp, color = Red, modifier = Modifier.padding(horizontal = 12.dp))
         }
-        if (a.isNotEmpty()) { item { SecTitle("规范彝文词典（${a.size}）") }; items(a) { SentCard(it, st) } }
+        if (a.isNotEmpty()) { item { SecTitle(I18n.f("规范彝文词典（{0}）", a.size)) }; items(a) { SentCard(it, st) } }
         if (b.isNotEmpty()) {
-            item { SecTitle("2008词典（${b.size}）") }
+            item { SecTitle(I18n.f("2008词典（{0}）", b.size)) }
             items(b) { (d, i) ->
                 AppCard(Modifier.clickable { onOpen(d to i) }) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -136,10 +141,25 @@ fun YiHanQuery(q: String, st: Store, onOpen: (Pair<MdictFile, Int>) -> Unit) {
                 }
             }
         }
-        if (c.isNotEmpty()) { item { SecTitle("古彝文（${c.size}）") }; items(c) { AncRow(it) { anc = it } } }
-        if (k.isNotEmpty() && a.isEmpty() && b.isEmpty() && c.isEmpty()) item { Text("没有找到相关内容", color = Color.Gray, modifier = Modifier.padding(12.dp)) }
+        if (d1165.isNotEmpty()) {
+            item { SecTitle(I18n.f("彝文字（{0}）", d1165.size)) }
+            items(d1165) { (yc, v) ->
+                AppCard(Modifier.clickable { ch = yc }) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        YiText(yc.toString(), 30.sp)
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text(v.py + (if (v.ipa.isNotEmpty()) "   " + v.ipa else ""), fontSize = 13.sp, color = Red)
+                            Text(v.mean, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if (c.isNotEmpty()) { item { SecTitle(I18n.f("古彝文（{0}）", c.size)) }; items(c) { AncRow(it) { anc = it } } }
+        if (k.isNotEmpty() && a.isEmpty() && b.isEmpty() && c.isEmpty() && d1165.isEmpty()) item { Text("没有找到相关内容", color = Color.Gray, modifier = Modifier.padding(12.dp)) }
     }
     anc?.let { AncDetail(it, st) { anc = null } }
+    ch?.let { YiCharDialog(it, null) { ch = null } }
 }
 
 /** 彝汉词典·词句分类 */
@@ -157,15 +177,15 @@ fun ThemeCategories(q: String, st: Store, sec: String?, onSec: (String?) -> Unit
                 AppCard(Modifier.clickable { onSec(s) }) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(s, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                        Text("${Repo.sents.count { it.sec == s }} 句  ›", color = Color.Gray)
+                        Text(I18n.f("{0} 句  ›", Repo.sents.count { it.sec == s }), color = Color.Gray)
                     }
                 }
             }
         }
     } else {
         Column {
-            if (key.isEmpty()) TextButton(onClick = { onSec(null) }) { Text("‹ 返回分类（$sec）") }
-            else Text("找到 ${list.size} 条", color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp))
+            if (key.isEmpty()) TextButton(onClick = { onSec(null) }) { Text(I18n.f("‹ 返回分类（{0}）", sec)) }
+            else Text(I18n.f("找到 {0} 条", list.size), color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp))
             LazyColumn(Modifier.padding(horizontal = 8.dp)) { items(list) { SentCard(it, st) } }
         }
     }
@@ -178,7 +198,7 @@ fun WordList(q: String) {
     val list = remember(q) { Repo.searchWords(q) }
     Column {
         Text(
-            if (q.isBlank()) "词库共 ${Repo.words.size} 个彝文词，输入拼音（如 ddop）或彝文查找" else "找到 ${list.size} 个（最多显示 80）",
+            if (q.isBlank()) I18n.f("词库共 {0} 个彝文词，输入拼音（如 ddop）或彝文查找", Repo.words.size) else I18n.f("找到 {0} 个（最多显示 80）", list.size),
             fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp)
         )
         LazyColumn(Modifier.padding(horizontal = 8.dp)) {
@@ -211,7 +231,7 @@ fun PinyinLookup(q: String, st: Store) {
         if (key.isEmpty()) item { Text("输入拼音（如 ne、ddop）：列出读这个音的现代彝文字，以及方言读音含该拼音的古彝字", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(12.dp)) }
         if (mod.isNotEmpty()) {
             item {
-                SecTitle("现代彝文（${mod.size}）")
+                SecTitle(I18n.f("现代彝文（{0}）", mod.size))
                 FlowRow {
                     mod.forEach { (r, c) ->
                         Column(Modifier.padding(3.dp).background(Color.White, RoundedCornerShape(8.dp)).clickable { ch = c }.padding(horizontal = 8.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -222,7 +242,7 @@ fun PinyinLookup(q: String, st: Store) {
                 }
             }
         }
-        if (ancs.isNotEmpty()) { item { SecTitle("古彝文（${ancs.size}）") }; items(ancs) { AncRow(it) { anc = it } } }
+        if (ancs.isNotEmpty()) { item { SecTitle(I18n.f("古彝文（{0}）", ancs.size)) }; items(ancs) { AncRow(it) { anc = it } } }
         if (key.isNotEmpty() && mod.isEmpty() && ancs.isEmpty()) item { Text("没有找到相关内容", color = Color.Gray, modifier = Modifier.padding(12.dp)) }
     }
     anc?.let { AncDetail(it, st) { anc = null } }
@@ -236,7 +256,7 @@ fun SyllableTable(q: String) {
     val key = q.trim().lowercase()
     val list = remember(q) { Repo.syllables().filter { key.isEmpty() || it.first.startsWith(key) } }
     Column {
-        Text("共 ${list.size} 个音节（全部 1165 个规范彝文字），点击可复制", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp))
+        Text(I18n.f("共 {0} 个音节（全部 1165 个规范彝文字），点击可复制", list.size), fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp))
         LazyVerticalGrid(GridCells.Fixed(4), Modifier.padding(horizontal = 8.dp)) {
             items(list) { (r, c) ->
                 Card(
@@ -246,6 +266,7 @@ fun SyllableTable(q: String) {
                     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(c.toString(), fontSize = 30.sp, fontFamily = Fonts.family)
                         Text(r, fontSize = 13.sp, color = Red)
+                        Repo.chars[c]?.ipa?.takeIf { it.isNotEmpty() }?.let { Text(it, fontSize = 10.sp, color = Color.Gray) }
                     }
                 }
             }
@@ -275,7 +296,11 @@ fun YiCharDialog(c: Char, r: Repo.Rad?, onDismiss: () -> Unit) {
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 YiText(c.toString(), 56.sp)
-                Text("拼音：" + (Repo.rom(c) ?: "-") + (r?.let { "    部首：第${it.no}部" } ?: ""), fontSize = 14.sp)
+                val ci = Repo.chars[c]
+                Text(I18n.f("凉山拼音：{0}{1}", ci?.py ?: Repo.rom(c) ?: "-", r?.let { I18n.f("    部首：第{0}部", it.no) } ?: ""), fontSize = 14.sp)
+                if (ci != null && ci.ipa.isNotEmpty()) Text(I18n.f("国际拼音：{0}", ci.ipa), fontSize = 14.sp)
+                if (ci != null && ci.mean.isNotEmpty()) Text(I18n.f("释义：{0}", ci.mean), fontSize = 14.sp)
+                if (ci != null && ci.cat.isNotEmpty()) Text(I18n.f("类别：{0}", ci.cat), fontSize = 12.sp, color = Color.Gray)
                 val ws = Repo.wordsWith(c)
                 Text(if (ws.isEmpty()) "词典例词：暂无" else "词典例词：", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
                 ws.forEach { w -> Column(Modifier.padding(vertical = 3.dp)) { YiText(w.yi, 20.sp); Text(w.zh, fontSize = 14.sp) } }
@@ -293,14 +318,14 @@ fun RadicalPane() {
     val r = Repo.radicals.getOrNull(sel)
     if (r == null) {
         Column {
-            Text("彝文部首检字法：共 ${Repo.radicals.size} 个部首，点选部首，再按笔画数找字", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            Text(I18n.f("彝文部首检字法：共 {0} 个部首，点选部首，再按笔画数找字", Repo.radicals.size), fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             LazyVerticalGrid(GridCells.Fixed(4), Modifier.padding(horizontal = 8.dp)) {
                 itemsIndexed(Repo.radicals) { i, x ->
                     Card(Modifier.padding(4.dp).clickable { sel = i }, shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                         Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("${x.no}", fontSize = 11.sp, color = Color.Gray)
                             YiText(x.rad, 28.sp, py = false)
-                            Text("${x.groups.sumOf { it.second.length }} 字", fontSize = 10.sp, color = Red)
+                            Text(I18n.f("{0} 字", x.groups.sumOf { it.second.length }), fontSize = 10.sp, color = Red)
                         }
                     }
                 }
@@ -308,11 +333,11 @@ fun RadicalPane() {
         }
     } else {
         Column {
-            BackBar("第 ${r.no} 部首 · ${r.groups.sumOf { it.second.length }} 字", { sel = -1 }) { YiText(r.rad, 24.sp, py = false) }
+            BackBar(I18n.f("第 {0} 部首 · {1} 字", r.no, r.groups.sumOf { it.second.length }), { sel = -1 }) { YiText(r.rad, 24.sp, py = false) }
             LazyColumn(Modifier.padding(horizontal = 8.dp)) {
                 r.groups.forEach { (n, chars) ->
                     item {
-                        Text(if (n == 0) "部首本身 · ${chars.length} 字" else "${n} 画 · ${chars.length} 字", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp))
+                        Text(if (n == 0) I18n.f("部首本身 · {0} 字", chars.length) else I18n.f("{0} 画 · {1} 字", n, chars.length), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp))
                         FlowRow {
                             chars.forEach { c ->
                                 Column(Modifier.padding(3.dp).background(Color.White, RoundedCornerShape(8.dp)).clickable { detail = c }.padding(horizontal = 8.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -341,7 +366,7 @@ fun MdxDetail(detail: Pair<MdictFile, Int>, onOpen: (Pair<MdictFile, Int>?) -> U
         BackBar(d.keys[i].take(30), { onOpen(null) }) { TextButton(onClick = { Clip.copy(ctx, d.keys[i]) }) { Text("复制词") } }
         if (snds.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                snds.forEach { s -> OutlinedButton(onClick = { playSound(ctx, s) }) { Text("▶ 发音 · " + s.label, fontSize = 13.sp) } }
+                snds.forEach { s -> OutlinedButton(onClick = { playSound(ctx, s) }) { Text(I18n.f("▶ 发音 · {0}", s.label), fontSize = 13.sp) } }
             }
         }
         MdxWebView(Mdict.html(d, i)) { w ->
