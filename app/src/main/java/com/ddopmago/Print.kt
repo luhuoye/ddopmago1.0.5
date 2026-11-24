@@ -53,7 +53,7 @@ object Printer {
                 when {
                     Repo.isAncientCp(cp) -> Cell(str, anc.measureText(str) + 4, 2, "")
                     cp in 0xA000..0xA48C -> {
-                        val p = if (noPy) "" else (Repo.rom(cp.toChar()) ?: "")
+                        val p = if (noPy) "" else (Repo.annot(cp.toChar()) ?: "")
                         Cell(str, maxOf(yi.measureText(str), py.measureText(p)) + 4, 1, p)
                     }
                     else -> Cell(str, (if (heading) head else txt).measureText(str), 0, "")
@@ -98,7 +98,7 @@ object Printer {
     /** 后台渲染并保存为 PNG */
     fun print(ctx: Context, title: String, lines: List<String>) {
         val app = ctx.applicationContext
-        Toast.makeText(app, "正在生成 PNG…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(app, I18n.t("正在生成 PNG…"), Toast.LENGTH_SHORT).show()
         Thread {
             val msg = try {
                 val pages = render(title, lines)
