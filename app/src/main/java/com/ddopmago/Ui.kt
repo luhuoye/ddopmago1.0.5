@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.Slider
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -51,7 +53,7 @@ fun YiText(s: String, size: TextUnit = 22.sp, color: Color = Color.Unspecified, 
             val ff: FontFamily? = if (anc) Fonts.ancient else if (modern) Fonts.family else null
             Column(Modifier.padding(horizontal = 1.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(str, fontSize = size, color = color, fontFamily = ff)
-                if (py) Text(if (cp in 0xA000..0xA48C) (Repo.rom(cp.toChar()) ?: "") else " ", fontSize = (size.value * 0.48f).coerceAtLeast(9f).sp, color = pyColor)
+                if (py) Text(if (cp in 0xA000..0xA48C) (Repo.annot(cp.toChar()) ?: "") else " ", fontSize = (size.value * 0.48f).coerceAtLeast(9f).sp, color = pyColor)
             }
         }
     }
@@ -67,27 +69,64 @@ fun MixText(text: String, yiSize: TextUnit = 22.sp, zhSize: TextUnit = 16.sp, co
     }
 }
 
-/** 只显示、不弹系统键盘的输入框；文字全部由内置键盘输入 */
+/** 输入栏：形状大小固定，只显示最近输入的内容；非做题界面（传入 onPaste）长按出现 复制 / 粘贴 / 剪切板 三个按钮 */
 @Composable
-fun InputBox(value: String, hint: String, onClick: () -> Unit = {}) {
+fun InputBox(value: String, hint: String, onPaste: ((String) -> Unit)? = null, onClick: () -> Unit = {}) {
+    val ctx = LocalContext.current
+    var menu by remember { mutableStateOf(false) }
+    var clipDlg by remember { mutableStateOf(false) }
     Box(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp)
-            .background(Color.White, RoundedCornerShape(12.dp))
+        Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(12.dp)).background(Color.White)
             .border(1.dp, Color(0xFFE0C9A6), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick).padding(12.dp)
+            .combinedClickable(onClick = onClick, onLongClick = { if (onPaste != null) menu = true })
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
         when {
-            value.isEmpty() -> Text(hint, color = Color.Gray)
-            Repo.hasYi(value) -> YiText("$value|", 24.sp)
-            else -> Text("$value|", fontSize = 22.sp)
+            value.isEmpty() -> Text(hint, color = Color.Gray, maxLines = 1)
+            Repo.hasYi(value) -> YiText(tailOf(value, 14) + "|", 22.sp)
+            else -> Text(tailOf(value, 26) + "|", fontSize = 20.sp, maxLines = 1)
+        }
+        if (menu && onPaste != null) {
+            Popup(alignment = Alignment.TopStart, offset = IntOffset(0, -150), onDismissRequest = { menu = false }, properties = PopupProperties(focusable = true)) {
+                Row(Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF263238)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { Clip.copy(ctx, value); menu = false }, enabled = value.isNotEmpty()) { Text("复制", color = Color.White) }
+                    TextButton(onClick = { onPaste(Clip.paste(ctx)); menu = false }) { Text("粘贴", color = Color.White) }
+                    TextButton(onClick = { clipDlg = true; menu = false }) { Text("剪切板", color = Color.White) }
+                }
+            }
         }
     }
+    if (clipDlg && onPaste != null) ClipDialog({ onPaste(it) }) { clipDlg = false }
+}
+
+/** 最后 n 个字符（按码点），前面用 … 省略 */
+fun tailOf(s: String, n: Int): String {
+    val cps = s.codePoints().toArray()
+    return if (cps.size <= n) s else "…" + String(cps, cps.size - n, n)
+}
+
+@Composable
+fun ClipDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("剪切板") },
+        text = {
+            if (ClipHistory.items.isEmpty()) Text("暂无内容", color = Color.Gray)
+            else LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                items(ClipHistory.items.toList()) { s ->
+                    Text(s.take(80), fontSize = 15.sp, maxLines = 2, modifier = Modifier.fillMaxWidth().clickable { onPick(s); onDismiss() }.padding(vertical = 8.dp))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+        dismissButton = { TextButton(onClick = { ClipHistory.items.clear() }) { Text("清空") } }
+    )
 }
 
 const val K_YI = 0
 const val K_ZH = 1
 const val K_ABC = 2
-const val K_SYM = 3
 
 private const val SYMS = "0123456789，。、；：？！…—～·“”‘’（）《》【】「」『』.,;:?!'\"()[]{}<>/\\|_-+=*&^%\$#@~`￥¥£€+−×÷=≠≈≤≥±∓√∛π∞∑∏∫∂∆∇°′″∠⊥∥∈∉⊂⊃∪∩∅∴∵∝‰‱²³¹⁰⁴⁵⁶⁷⁸⁹½⅓¼¾℃℉αβγδεθλμνξρσφψωΩΔΣ★☆○●◎□■△▲▽▼◇◆→←↑↓↔⇒⇔✓✗©®™§¶†‡•※"
 private val KeyBg = Color(0xEBFFFFFF)
@@ -127,22 +166,28 @@ fun evalExpr(s: String): String {
 @Composable
 fun AppKeyboard(
     kind: Int, text: String, onText: (String) -> Unit, onBack: () -> Unit,
-    onHide: (() -> Unit)? = null, onPaste: (() -> Unit)? = null
+    onHide: (() -> Unit)? = null, onPaste: (() -> Unit)? = null, onEnter: (() -> Unit)? = null
 ) {
     val ctx = LocalContext.current
-    var mode by remember(kind) { mutableIntStateOf(if (kind == K_SYM) K_ABC else kind) }
+    var mode by remember(kind) { mutableIntStateOf(kind) }
     var buf by remember { mutableStateOf("") }
     var panel by remember { mutableIntStateOf(0) } // 0键盘 1符号 2文本编辑 3剪切板 4草稿本 5计算器 6彝文字表
     var shift by remember { mutableStateOf(false) }
     val clipOk = onPaste != null
-    val yiC = remember(buf, mode) { if (mode == K_YI) Repo.cands(buf) else emptyList() }
+    val ime = remember(buf, mode) { if (mode == K_YI) YiIme.candidates(buf) else YiIme.ImeResult(emptyList(), emptyList()) }
     val zhC = remember(buf, text, mode) {
-        if (mode == K_ZH) (if (buf.isEmpty()) Repo.zhNext(text) else Repo.pyCands(buf)) else emptyList()
+        if (mode == K_ZH) (if (buf.isEmpty()) Repo.zhNext(text) else Repo.pyCands(buf.replace("'", ""))) else emptyList()
     }
     fun setMode(m: Int) { mode = m; buf = ""; if (panel == 6) panel = 0 }
     fun clearAll() { repeat(text.length) { onBack() } }
 
     Column(Modifier.fillMaxWidth().background(KbBrush).padding(4.dp)) {
+        // 最近输入的内容（输入栏高于键盘，方便看见刚输入的字）
+        Box(Modifier.fillMaxWidth().height(30.dp).padding(bottom = 2.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x66FFFFFF)).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
+            if (text.isEmpty()) Text("…", color = Color.White, fontSize = 13.sp)
+            else if (Repo.hasYi(text)) Text(tailOf(text, 24), fontSize = 18.sp, color = Color.White, maxLines = 1, fontFamily = Fonts.family)
+            else Text(tailOf(text, 36), fontSize = 16.sp, color = Color.White, maxLines = 1)
+        }
         // 键盘菜单
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             listOf(2 to "文本编辑", 3 to "剪切板", 4 to "草稿本", 5 to "计算器").forEach { (p, n) ->
@@ -156,11 +201,11 @@ fun AppKeyboard(
         Row(Modifier.fillMaxWidth().height(46.dp).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
             when (mode) {
                 K_YI -> {
-                    Text(if (buf.isEmpty()) I18n.t("输入拼音如 ne，或点「字表」") else buf, fontSize = 13.sp, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp))
-                    yiC.forEach { c ->
-                        Column(Modifier.clickable { onText(c.toString()); buf = "" }.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(c.toString(), fontSize = 24.sp, color = Color.White, fontFamily = Fonts.family)
-                            Text(Repo.rom(c) ?: "", fontSize = 10.sp, color = Color(0xFFFFE0B2))
+                    Text(if (buf.isEmpty()) I18n.t("输入拼音如 ne，或点「字表」") else ime.segs.joinToString(" ' ").ifEmpty { buf }, fontSize = 13.sp, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp))
+                    ime.cands.forEach { c ->
+                        Column(Modifier.clickable { onText(c.text); YiIme.learn(c.text); buf = c.rest }.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(c.text, fontSize = 24.sp, color = Color.White, maxLines = 1, fontFamily = Fonts.family)
+                            Text(Repo.pinyin(c.text), fontSize = 9.sp, color = Color(0xFFFFE0B2), maxLines = 1)
                         }
                     }
                 }
@@ -178,7 +223,7 @@ fun AppKeyboard(
                     val ch = cp.toChar()
                     Column(Modifier.fillMaxWidth().clickable { onText(ch.toString()) }.padding(vertical = 3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(ch.toString(), fontSize = 22.sp, textAlign = TextAlign.Center, fontFamily = Fonts.family)
-                        Text(Repo.rom(ch) ?: "", fontSize = 9.sp, color = PyColor)
+                        Text(Repo.annot(ch) ?: "", fontSize = 9.sp, color = PyColor)
                     }
                 }
             }
@@ -237,6 +282,8 @@ fun AppKeyboard(
                         val label = if (mode == K_ABC && shift) ch.uppercaseChar().toString() else ch.toString()
                         Key(label, Modifier.weight(1f)) { if (mode == K_ABC) onText(label) else buf += ch }
                     }
+                    // 撇号：彝文输入模式下是隔字符（不输出），字母输入模式下输出 '
+                    Key("'", Modifier.weight(1f)) { if (mode == K_ABC) onText("'") else if (buf.isNotEmpty() && !buf.endsWith("'")) buf += "'" }
                 }
             }
         }
@@ -254,11 +301,12 @@ fun AppKeyboard(
                 Key("。", Modifier.weight(0.9f)) { onText("。") }
             }
             Key(I18n.t("空格"), Modifier.weight(1.8f)) {
-                if (mode == K_YI && buf.isNotEmpty()) { yiC.firstOrNull()?.let { onText(it.toString()) }; buf = "" }
+                if (mode == K_YI && buf.isNotEmpty()) { ime.cands.firstOrNull()?.let { onText(it.text); YiIme.learn(it.text); buf = it.rest } }
                 else if (mode == K_ZH && buf.isNotEmpty()) { zhC.firstOrNull()?.let { onText(it.toString()) }; buf = "" }
                 else onText(" ")
             }
             Key("⌫", Modifier.weight(1.2f)) { if ((mode == K_YI || mode == K_ZH) && buf.isNotEmpty()) buf = buf.dropLast(1) else onBack() }
+            if (onEnter != null) Key("⏎", Modifier.weight(1f)) { onEnter() }
             if (onPaste != null) Key(I18n.t("粘贴"), Modifier.weight(1.1f)) { onPaste() }
         }
     }
