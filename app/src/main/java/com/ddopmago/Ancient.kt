@@ -78,14 +78,14 @@ fun AncientRadicalPane(st: Store) {
     val r = AncientData.rads.getOrNull(selRad)
     if (r == null) {
         Column {
-            Text("按部首查古彝字：共 ${AncientData.rads.size} 个部首，点选部首，再按笔画找字", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            Text(I18n.f("按部首查古彝字：共 {0} 个部首，点选部首，再按笔画找字", AncientData.rads.size), fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             LazyVerticalGrid(GridCells.Fixed(5), Modifier.padding(horizontal = 8.dp)) {
                 items(AncientData.rads.indices.toList()) { i ->
                     val x = AncientData.rads[i]
                     Card(Modifier.padding(4.dp).clickable { selRad = i }, shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                         Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             AncientText(x.r, 30.sp)
-                            Text("${x.groups.sumOf { it.second.size }} 字", fontSize = 10.sp, color = Color.Gray)
+                            Text(I18n.f("{0} 字", x.groups.sumOf { it.second.size }), fontSize = 10.sp, color = Color.Gray)
                         }
                     }
                 }
@@ -93,11 +93,11 @@ fun AncientRadicalPane(st: Store) {
         }
     } else {
         Column {
-            BackBar("部首 · ${r.groups.sumOf { it.second.size }} 字", { selRad = -1 }) { AncientText(r.r, 24.sp) }
+            BackBar(I18n.f("部首 · {0} 字", r.groups.sumOf { it.second.size }), { selRad = -1 }) { AncientText(r.r, 24.sp) }
             LazyColumn(Modifier.padding(horizontal = 8.dp)) {
                 r.groups.forEach { (n, ws) ->
                     item {
-                        Text("${n} 画（${ws.size}）", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp))
+                        Text(I18n.f("{0} 画（{1}）", n, ws.size), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Red, modifier = Modifier.padding(8.dp))
                         FlowRow {
                             ws.forEach { w ->
                                 Box(Modifier.padding(3.dp).background(Color.White, RoundedCornerShape(8.dp)).clickable { AncientData.find(w)?.let { detail = it } }.padding(horizontal = 8.dp, vertical = 4.dp)) {
@@ -121,7 +121,7 @@ fun AncRow(a: Anc, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(a.mean.ifBlank { "（无释义）" }, fontSize = 16.sp)
                 val first = a.pron.firstOrNull()
-                Text("${a.n} 画 · 第${a.page}页" + (first?.let { " · ${it[0]}${it[1]} ${it[2]}" } ?: ""), fontSize = 12.sp, color = Color.Gray, maxLines = 1)
+                Text(I18n.f("{0} 画 · 第{1}页", a.n, a.page) + (first?.let { " · ${it[0]}${it[1]} ${it[2]}" } ?: ""), fontSize = 12.sp, color = Color.Gray, maxLines = 1)
             }
         }
     }
@@ -140,7 +140,7 @@ fun AncDetail(a: Anc, st: Store, onDismiss: () -> Unit) {
                 Text(a.mean.ifBlank { "（无释义）" }, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("部首：", fontSize = 14.sp); AncientText(a.rad, 22.sp)
-                    Text("   ${a.n} 画 · 第${a.page}页 · 编码 ${a.code}", fontSize = 13.sp, color = Color.Gray)
+                    Text(I18n.f("   {0} 画 · 第{1}页 · 编码 {2}", a.n, a.page, a.code), fontSize = 13.sp, color = Color.Gray)
                 }
                 if (a.pron.isEmpty()) Text("暂无方言读音", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
                 a.pron.groupBy { it[0] }.forEach { (d, ps) ->
