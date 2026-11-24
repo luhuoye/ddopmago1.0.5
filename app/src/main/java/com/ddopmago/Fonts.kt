@@ -68,7 +68,7 @@ object Clip {
         val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("ddopmago", text))
         ClipHistory.add(text)
-        Toast.makeText(ctx, "已复制", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, I18n.t("已复制"), Toast.LENGTH_SHORT).show()
     }
 
     fun paste(ctx: Context): String {
