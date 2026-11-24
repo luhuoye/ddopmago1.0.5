@@ -40,7 +40,7 @@ fun NotesScreen(st: Store) {
                     Row(Modifier.padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(noteTitle(d.chars), fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                            Text("${d.chars.size} 字", fontSize = 11.sp, color = Color.Gray)
+                            Text(I18n.f("{0} 字", d.chars.size), fontSize = 11.sp, color = Color.Gray)
                         }
                         TextButton(onClick = { st.removeNote(d) }) { Text("删除", color = Red) }
                     }
@@ -110,7 +110,7 @@ fun NoteEditor(doc: NoteDoc, st: Store, onBack: () -> Unit) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(c.ch, fontSize = 24.sp, color = Color(c.color), fontFamily = if (c.font >= 0) Fonts.familyOf(c.font) else null)
-                            if (yi) Text(Repo.rom(c.ch[0]) ?: "", fontSize = 9.sp, color = Color(c.color))
+                            if (yi) Text(Repo.annot(c.ch[0]) ?: "", fontSize = 9.sp, color = Color(c.color))
                         }
                     }
                 }
