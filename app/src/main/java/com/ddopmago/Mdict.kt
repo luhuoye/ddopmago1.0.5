@@ -25,7 +25,6 @@ class MdictFile(val file: File, private val isMdd: Boolean) {
     var keys: Array<String> = emptyArray()
     private var ids = LongArray(0)
     private var sortedIds = LongArray(0)
-    private var orderByIds = IntArray(0)
     private var lower: Array<String> = emptyArray()
     private var blkComp = LongArray(0)
     private var blkDecomp = LongArray(0)
@@ -151,7 +150,6 @@ class MdictFile(val file: File, private val isMdd: Boolean) {
         keys = kl.toTypedArray()
         ids = il.toLongArray()
         val order = ids.indices.sortedBy { ids[it] }
-        orderByIds = order.toIntArray()
         sortedIds = LongArray(order.size) { ids[order[it]] }
         lower = Array(keys.size) { keys[it].trim().lowercase() }
         // 记录块
@@ -217,38 +215,6 @@ class MdictFile(val file: File, private val isMdd: Boolean) {
             else if (s.contains(k)) { if (con.size < limit) con.add(i) }
         }
         return (ex + pre + con).take(limit)
-    }
-
-    private fun indexOf(h: ByteArray, n: ByteArray, from: Int): Int {
-        if (n.isEmpty()) return -1
-        var i = from
-        while (i <= h.size - n.size) {
-            var j = 0
-            while (j < n.size && h[i + j] == n[j]) j++
-            if (j == n.size) return i
-            i++
-        }
-        return -1
-    }
-
-    /** 全文检索（扫描所有释义，较慢，需在后台线程调用） */
-    fun fullText(q: String, limit: Int, stop: () -> Boolean): List<Int> {
-        val needle = q.trim().toByteArray(charset(encoding))
-        val hits = LinkedHashSet<Int>()
-        for (b in blkStart.indices) {
-            if (stop() || hits.size >= limit) break
-            val d = block(b)
-            var from = 0
-            while (true) {
-                val p = indexOf(d, needle, from)
-                if (p < 0) break
-                val k = upper(sortedIds, blkStart[b] + p) - 1
-                if (k >= 0) hits.add(orderByIds[k])
-                from = p + needle.size
-                if (hits.size >= limit) break
-            }
-        }
-        return hits.toList()
     }
 
     private val resMap by lazy { HashMap<String, Int>().also { m -> keys.forEachIndexed { i, k -> m[k.lowercase()] = i } } }
@@ -355,7 +321,7 @@ object Mdict {
         if (skip) return s
         val sb = StringBuilder()
         for (c in s) {
-            val r = if (Repo.isYi(c)) Repo.rom(c) else null
+            val r = if (Repo.isYi(c)) Repo.annot(c) else null
             if (r != null) sb.append("<ruby>").append(c).append("<rt>").append(r).append("</rt></ruby>") else sb.append(c)
         }
         return sb.toString()
